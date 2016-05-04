@@ -1,0 +1,97 @@
+#### Parsing kallisto parameters
+
+KAIDX = config["index"]
+RAW_DATA = config["base_dir"] + config["disease"] + "/data/data_raw/rna-seq/"
+PROCESSED_DATA = config["base_dir"] + config["disease"] + "/data/data_processed/rna-seq/"
+
+if (config["bias"] or config["bias"] != "None"):
+    BIAS = "--bias"
+
+if (config["flength"] is not None):
+    FL = '-l ' + config["flength"]
+else:
+    FLP = ''
+
+if (config["fsd"] is not None):
+    FSD = '-s' + config["fsd"]
+else:
+    FSD = ''
+
+
+if (config["samples"] is not None):
+    with open(config["samples"], 'r') as f:
+        SAMPLES = f.read().split("\n")[:-1]
+else:
+    SAMPLES = list()
+
+
+rule all:
+    input:
+        expand([PROCESSED_DATA + 'kallisto/{id}/abundance.h5',
+                PROCESSED_DATA + 'fastqc/{id}/{id}_{i}_fastqc.html'], id = SAMPLES, i = [1,2])
+
+rule kallisto_quant:
+    input:
+        RAW_DATA + '{id}/{id}_1.fastq.gz',
+        RAW_DATA + '{id}/{id}_2.fastq.gz',
+        KAIDX
+    output:
+        PROCESSED_DATA + 'kallisto/{id}',
+        PROCESSED_DATA + 'kallisto/{id}/abundance.h5'
+    log:
+        PROCESSED_DATA + 'kallisto/{id}/log.txt'
+    threads: config["threads"]
+    version: config["kal_version"]
+    shell:
+        'module purge;'
+        'module load tools;'
+        'module load kallisto/{version};'
+        'kallisto quant '
+        '-i {KAIDX} '
+        '-b {config["bootstraps"]} '
+        '{FL} '
+        '{FSD} '
+        '{BIAS} '
+        '-t {threads} '
+        '-o {output[0]} '
+        '{input[0]} {input[1]} '
+        '> {log} 2>&1'
+
+rule get_annotation:
+    output:
+        config["transcripts"]
+    shell:
+        'wget -O {output} '
+        'http://bio.math.berkeley.edu/kallisto/transcriptomes/Homo_sapiens.GRCh38.rel79.cdna.all.fa.gz'
+
+rule kallisto_index:
+    input:
+        config["transcripts"]
+    output:
+        KAIDX
+    version: config["kal_version"]
+    shell:
+        'module purge;'
+        'module load tools;'
+        'module load kallisto/{version};'
+        'kallisto index '
+        '-i {output} {input}'
+
+rule fastqc:
+    input:
+        RAW_DATA + '{id}/{id}_1.fastq.gz',
+        RAW_DATA + '{id}/{id}_2.fastq.gz'
+    output:
+        PROCESSED_DATA + 'fastqc/{id}',
+        PROCESSED_DATA + 'fastqc/{id}/{id}_1_fastqc.html',
+        PROCESSED_DATA + 'fastqc/{id}/{id}_2_fastqc.html'
+    threads: 2
+    version: config["qc_version"]
+    shell:
+        'module purge;'
+        'module load tools;'
+        'module load java/1.8.0 perl/5.20.2 fastqc/{version};'
+        'fastqc '
+        '-t {threads} '
+        '-o {output[0]} '
+        '{input[0]} {input[1]} '

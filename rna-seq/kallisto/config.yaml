@@ -1,0 +1,33 @@
+# ####################################################################################################
+# This is a sample configuration file to quantify gene expression from rna-seq TCGA data using 
+# kallisto.
+#
+# Author: Who cares
+# Copyrights: You're funny
+# ####################################################################################################
+
+
+disease:
+
+base_dir:
+
+# path to a text file containing sample ids
+samples:
+
+#kallisto parameters
+bootstraps:
+
+#fragment length and standard deviation (optional)
+flength:
+fsd:
+
+#boolean
+bias:
+
+threads:
+index:
+transcripts:
+kal_version:
+
+#fastqc parameters
+qc_version:
